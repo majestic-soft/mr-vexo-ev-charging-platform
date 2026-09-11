@@ -1,0 +1,7 @@
+{
+  "name": "ULTIMATE Admin",
+  "description": "Premium Enterprise Admin Panel for ULTIMATE EV Charging Marketplace with RBAC, Station & Booking Oversight, and Staff Controls",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

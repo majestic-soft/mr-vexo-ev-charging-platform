@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for Authentication & RBAC validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getAdminData() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getAdminData().role == 'SUPER_ADMIN';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (getAdminData().role == 'SUPER_ADMIN' || getAdminData().role == 'ADMIN');
+    }
+
+    function isManager() {
+      return isAuthenticated() && (isAdmin() || getAdminData().role == 'MANAGER');
+    }
+
+    function isFinance() {
+      return isAuthenticated() && (isAdmin() || getAdminData().role == 'FINANCE');
+    }
+
+    function isOperations() {
+      return isAuthenticated() && (isAdmin() || getAdminData().role == 'OPERATIONS');
+    }
+
+    function isSupport() {
+      return isAuthenticated() && (isAdmin() || isManager() || getAdminData().role == 'SUPPORT');
+    }
+
+    function hasPermission(permission) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (getAdminData().permissions != null && getAdminData().permissions.hasAny([permission]))
+      );
+    }
+
+    // 1. Staff & Admin Directory (Strict Access Control)
+    match /admins/{adminId} {
+      // Super Admin and Admin can view all staff. Managers view only assigned staff in their department. Staff can view their own profile.
+      allow read: if isSuperAdmin() || isAdmin() || (isManager() && resource.data.managerId == request.auth.uid) || request.auth.uid == adminId;
+      // Only Super Admin can provision new admin accounts, delete, or alter role & permission arrays
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (request.auth.uid == adminId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions', 'status']));
+    }
+
+    // 2. Customers Collection
+    match /customers/{customerId} {
+      allow read: if hasPermission('VIEW_CUSTOMERS');
+      allow write: if hasPermission('MANAGE_CUSTOMERS') || isSuperAdmin();
+    }
+
+    // 3. Hosts Collection
+    match /hosts/{hostId} {
+      allow read: if hasPermission('VIEW_HOSTS');
+      allow write: if hasPermission('MANAGE_HOSTS') || isSuperAdmin();
+    }
+
+    // 4. Charging Stations Infrastructure
+    match /stations/{stationId} {
+      allow read: if hasPermission('VIEW_STATIONS');
+      allow write: if hasPermission('MANAGE_STATIONS') || hasPermission('APPROVE_STATIONS') || isOperations() || isSuperAdmin();
+    }
+
+    // 5. Bookings & Charging Sessions
+    match /bookings/{bookingId} {
+      allow read: if hasPermission('VIEW_BOOKINGS');
+      allow write: if hasPermission('MANAGE_BOOKINGS') || isOperations() || isSuperAdmin();
+    }
+
+    // 6. Financial Payouts & Host Withdrawals
+    match /withdrawals/{withdrawalId} {
+      allow read: if hasPermission('VIEW_WITHDRAWALS') || isFinance();
+      allow write: if hasPermission('MANAGE_WITHDRAWALS') || isSuperAdmin();
+    }
+
+    // 7. Wallet Ledgers & Transactions
+    match /transactions/{transactionId} {
+      allow read: if hasPermission('VIEW_PAYMENTS') || hasPermission('VIEW_WALLETS') || isFinance();
+      allow write: if hasPermission('MANAGE_PAYMENTS') || isSuperAdmin();
+    }
+
+    // 8. Promo Codes & Coupons (Backend Validation)
+    match /promos/{promoId} {
+      allow read: if hasPermission('VIEW_PROMOS') || isAuthenticated();
+      allow write: if hasPermission('MANAGE_PROMOS') || isSuperAdmin();
+    }
+
+    match /coupon_usage_history/{recordId} {
+      allow read: if hasPermission('VIEW_PROMOS') || isFinance() || isSuperAdmin();
+      allow create: if isAuthenticated(); // written by server-side / transaction function during checkout
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // 9. Support Tickets & Escalation Workflows
+    match /tickets/{ticketId} {
+      // Support staff only view assigned tickets unless they are Manager or Super Admin
+      allow read: if isSuperAdmin() || isAdmin() || isManager() || (isSupport() && (resource.data.assignedStaffId == request.auth.uid || resource.data.assignedStaffName == getAdminData().name));
+      allow create: if hasPermission('CREATE_SUPPORT_TICKETS') || isSupport() || isSuperAdmin();
+      allow update: if isSuperAdmin() || isManager() || (isSupport() && (resource.data.assignedStaffId == request.auth.uid || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'replies', 'updatedAt', 'escalatedToManager', 'escalatedReason'])));
+      allow delete: if isSuperAdmin();
+
+      match /replies/{replyId} {
+        allow read: if isSuperAdmin() || isManager() || (isSupport() && (get(/databases/$(database)/documents/tickets/$(ticketId)).data.assignedStaffId == request.auth.uid));
+        allow create: if hasPermission('ADD_NOTES') || isSupport() || isSuperAdmin();
+      }
+    }
+
+    // 10. Disputes & Refunds
+    match /disputes/{disputeId} {
+      allow read: if hasPermission('VIEW_DISPUTES') || isSupport() || isManager() || isSuperAdmin();
+      allow write: if hasPermission('MANAGE_DISPUTES') || isSuperAdmin();
+    }
+
+    // 11. System Configuration & Audit Logs
+    match /system_settings/{settingId} {
+      allow read: if isSuperAdmin() || isAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    match /activity_logs/{logId} {
+      allow read: if isSuperAdmin() || isManager();
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // 12. Staff Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.recipientId == request.auth.uid || resource.data.targetRole == getAdminData().role || isSuperAdmin());
+      allow write: if isAuthenticated();
+    }
+  }
+}

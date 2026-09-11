@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.2"
+        android:scaleY="1.2"
+        android:translateX="-10.8"
+        android:translateY="-10.8">
+        <!-- EV Station Body -->
+        <path
+            android:fillColor="#00E676"
+            android:pathData="M34,26 C34,22.686 36.686,20 40,20 L68,20 C71.314,20 74,22.686 74,26 L74,84 C74,86.209 72.209,88 70,88 L38,88 C35.791,88 34,86.209 34,84 Z" />
+        
+        <!-- Screen display area -->
+        <path
+            android:fillColor="#092B1E"
+            android:pathData="M40,28 L68,28 C69.105,28 70,28.895 70,30 L70,52 C70,53.105 69.105,54 68,54 L40,54 C38.895,54 38,53.105 38,52 L38,30 C38,28.895 38.895,28 40,28 Z" />
+        
+        <!-- Lightning bolt in screen -->
+        <path
+            android:fillColor="#00E676"
+            android:pathData="M56,31 L46,42 L53,42 L51,51 L61,40 L54,40 Z" />
+
+        <!-- Plug cable & nozzle -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M74,48 C78,48 81,51 81,55 L81,64 C81,66.2 79.2,68 77,68 L74,68 Z" />
+        <path
+            android:fillColor="#00E676"
+            android:pathData="M78,42 L84,42 C85.1,42 86,42.9 86,44 L86,52 C86,53.1 85.1,54 84,54 L78,54 Z" />
+        
+        <!-- Base stand -->
+        <path
+            android:fillColor="#00C853"
+            android:pathData="M30,84 L78,84 C79.105,84 80,84.895 80,86 L80,88 C80,89.105 79.105,90 78,90 L30,90 C28.895,90 28,89.105 28,88 L28,86 C28,84.895 28.895,84 30,84 Z" />
+    </group>
+</vector>
+
